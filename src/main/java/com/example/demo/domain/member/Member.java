@@ -1,20 +1,33 @@
 package com.example.demo.domain.member;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
 
+@Entity
+@Table(name = "member")
 public class Member {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotBlank(message = "이름은 필수입니다.")
+    @Column(name = "name")
     private String name;
 
     @NotBlank(message = "이메일은 필수입니다.")
+    @Column(name = "email")
     private String email;
 
     @JsonIgnore
     @NotBlank(message = "비밀번호는 필수입니다.")
+    @Column(name = "password")
     private String password;
 
     public Member() {}

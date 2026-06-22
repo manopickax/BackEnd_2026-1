@@ -1,95 +1,70 @@
 package com.example.demo.domain.article;
 
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class ArticleDao {
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public ArticleDao(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    private final RowMapper<Article> rowMapper = (rs, rowNum) -> {
-        Article article = new Article();
-        article.setId(rs.getLong("id"));
-        article.setTitle(rs.getString("title"));
-        article.setContent(rs.getString("content"));
-        article.setMemberId(rs.getLong("author_id"));
-        article.setBoardId(rs.getLong("board_id"));
-        Timestamp createdTs = rs.getTimestamp("created_date");
-        article.setCreatedDate(createdTs != null ? createdTs.toLocalDateTime() : null);
-        Timestamp modifiedTs = rs.getTimestamp("modified_date");
-        article.setModifiedDate(modifiedTs != null ? modifiedTs.toLocalDateTime() : null);
-        return article;
-    };
-
-    private static final String SELECT_ALL_COLUMNS =
-            "SELECT id, author_id, board_id, title, content, created_date, modified_date FROM article";
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public List<Article> findAll() {
-        return jdbcTemplate.query(SELECT_ALL_COLUMNS, rowMapper);
+        return entityManager.createQuery("SELECT a FROM Article a", Article.class)
+                .getResultList();
     }
 
     public List<Article> findByBoardId(Long boardId) {
-        return jdbcTemplate.query(
-                SELECT_ALL_COLUMNS + " WHERE board_id = ?", rowMapper, boardId);
+        return entityManager
+                .createQuery("SELECT a FROM Article a WHERE a.boardId = :boardId", Article.class)
+                .setParameter("boardId", boardId)
+                .getResultList();
     }
 
     public Optional<Article> findById(Long id) {
-        List<Article> result = jdbcTemplate.query(
-                SELECT_ALL_COLUMNS + " WHERE id = ?", rowMapper, id);
-        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+        return Optional.ofNullable(entityManager.find(Article.class, id));
     }
 
     public boolean existsByMemberId(Long memberId) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM article WHERE author_id = ?", Integer.class, memberId);
-        return count != null && count > 0;
+        Long count = entityManager
+                .createQuery("SELECT COUNT(a) FROM Article a WHERE a.memberId = :memberId", Long.class)
+                .setParameter("memberId", memberId)
+                .getSingleResult();
+        return count > 0;
     }
 
     public boolean existsByBoardId(Long boardId) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM article WHERE board_id = ?", Integer.class, boardId);
-        return count != null && count > 0;
+        Long count = entityManager
+                .createQuery("SELECT COUNT(a) FROM Article a WHERE a.boardId = :boardId", Long.class)
+                .setParameter("boardId", boardId)
+                .getSingleResult();
+        return count > 0;
     }
 
     public Article save(Article article) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(con -> {
-            PreparedStatement ps = con.prepareStatement(
-                    "INSERT INTO article (author_id, board_id, title, content) VALUES (?, ?, ?, ?)",
-                    Statement.RETURN_GENERATED_KEYS);
-            ps.setLong(1, article.getMemberId());
-            ps.setLong(2, article.getBoardId());
-            ps.setString(3, article.getTitle());
-            ps.setString(4, article.getContent());
-            return ps;
-        }, keyHolder);
-        article.setId(keyHolder.getKey().longValue());
+        entityManager.persist(article);
         return article;
     }
 
+    // 영속 상태 엔티티 필드 변경 → 트랜잭션 커밋 시 dirty checking으로 UPDATE 자동 반영
+    // created_date / modified_date 는 insertable=false, updatable=false 로 MySQL이 관리
     public Article update(Article article) {
-        jdbcTemplate.update(
-                "UPDATE article SET author_id = ?, board_id = ?, title = ?, content = ? WHERE id = ?",
-                article.getMemberId(), article.getBoardId(),
-                article.getTitle(), article.getContent(), article.getId());
-        return article;
+        Article managed = entityManager.find(Article.class, article.getId());
+        managed.setTitle(article.getTitle());
+        managed.setContent(article.getContent());
+        managed.setMemberId(article.getMemberId());
+        managed.setBoardId(article.getBoardId());
+        return managed;
     }
 
     public void deleteById(Long id) {
-        jdbcTemplate.update("DELETE FROM article WHERE id = ?", id);
+        Article article = entityManager.find(Article.class, id);
+        if (article != null) {
+            entityManager.remove(article);
+        }
     }
 }

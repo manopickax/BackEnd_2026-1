@@ -1,69 +1,51 @@
 package com.example.demo.domain.board;
 
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class BoardDao {
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public BoardDao(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    private final RowMapper<Board> rowMapper = (rs, rowNum) -> {
-        Board board = new Board();
-        board.setId(rs.getLong("id"));
-        board.setName(rs.getString("name"));
-        return board;
-    };
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public List<Board> findAll() {
-        return jdbcTemplate.query("SELECT id, name FROM board", rowMapper);
+        return entityManager.createQuery("SELECT b FROM Board b", Board.class)
+                .getResultList();
     }
 
     public Optional<Board> findById(Long id) {
-        List<Board> result = jdbcTemplate.query(
-                "SELECT id, name FROM board WHERE id = ?", rowMapper, id);
-        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+        return Optional.ofNullable(entityManager.find(Board.class, id));
     }
 
     public boolean existsById(Long id) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM board WHERE id = ?", Integer.class, id);
-        return count != null && count > 0;
+        Long count = entityManager
+                .createQuery("SELECT COUNT(b) FROM Board b WHERE b.id = :id", Long.class)
+                .setParameter("id", id)
+                .getSingleResult();
+        return count > 0;
     }
 
     public Board save(Board board) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(con -> {
-            PreparedStatement ps = con.prepareStatement(
-                    "INSERT INTO board (name) VALUES (?)",
-                    Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, board.getName());
-            return ps;
-        }, keyHolder);
-        board.setId(keyHolder.getKey().longValue());
+        entityManager.persist(board);
         return board;
     }
 
+    // 영속 상태 엔티티 필드 변경 → 트랜잭션 커밋 시 dirty checking으로 UPDATE 자동 반영
     public Board update(Board board) {
-        jdbcTemplate.update(
-                "UPDATE board SET name = ? WHERE id = ?",
-                board.getName(), board.getId());
-        return board;
+        Board managed = entityManager.find(Board.class, board.getId());
+        managed.setName(board.getName());
+        return managed;
     }
 
     public void deleteById(Long id) {
-        jdbcTemplate.update("DELETE FROM board WHERE id = ?", id);
+        Board board = entityManager.find(Board.class, id);
+        if (board != null) {
+            entityManager.remove(board);
+        }
     }
 }
