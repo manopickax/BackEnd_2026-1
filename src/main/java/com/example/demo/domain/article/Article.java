@@ -2,6 +2,7 @@ package com.example.demo.domain.article;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.LocalDateTime;
 
 public class Article {
 
@@ -18,6 +19,9 @@ public class Article {
 
     @NotNull(message = "게시판 ID는 필수입니다.")
     private Long boardId;
+
+    private LocalDateTime createdDate;
+    private LocalDateTime modifiedDate;
 
     public Article() {}
 
@@ -39,4 +43,8 @@ public class Article {
     public void setMemberId(Long memberId) { this.memberId = memberId; }
     public Long getBoardId() { return boardId; }
     public void setBoardId(Long boardId) { this.boardId = boardId; }
+    public LocalDateTime getCreatedDate() { return createdDate; }
+    public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }
+    public LocalDateTime getModifiedDate() { return modifiedDate; }
+    public void setModifiedDate(LocalDateTime modifiedDate) { this.modifiedDate = modifiedDate; }
 }

@@ -1,66 +1,69 @@
 package com.example.demo.domain.article;
 
-import com.example.demo.domain.board.BoardRepository;
-import com.example.demo.domain.member.MemberRepository;
+import com.example.demo.domain.board.BoardDao;
+import com.example.demo.domain.member.MemberDao;
 import com.example.demo.exception.BadRequestException;
 import com.example.demo.exception.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class ArticleService {
 
-    private final ArticleRepository articleRepository;
-    private final MemberRepository memberRepository;
-    private final BoardRepository boardRepository;
+    private final ArticleDao articleDao;
+    private final MemberDao memberDao;
+    private final BoardDao boardDao;
 
-    public ArticleService(ArticleRepository articleRepository,
-                          MemberRepository memberRepository,
-                          BoardRepository boardRepository) {
-        this.articleRepository = articleRepository;
-        this.memberRepository = memberRepository;
-        this.boardRepository = boardRepository;
+    public ArticleService(ArticleDao articleDao, MemberDao memberDao, BoardDao boardDao) {
+        this.articleDao = articleDao;
+        this.memberDao = memberDao;
+        this.boardDao = boardDao;
     }
 
+    @Transactional(readOnly = true)
     public List<Article> getByBoardId(Long boardId) {
-        boardRepository.findById(boardId)
+        boardDao.findById(boardId)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 게시판입니다. id=" + boardId));
-        return articleRepository.findByBoardId(boardId);
+        return articleDao.findByBoardId(boardId);
     }
 
+    @Transactional(readOnly = true)
     public Article getById(Long id) {
-        return articleRepository.findById(id)
+        return articleDao.findById(id)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 게시물입니다. id=" + id));
     }
 
+    @Transactional
     public Article create(Article article) {
         validateReferences(article.getMemberId(), article.getBoardId());
-        article.setId(null);
-        return articleRepository.save(article);
+        return articleDao.save(article);
     }
 
+    @Transactional
     public Article update(Long id, Article articleData) {
-        articleRepository.findById(id)
+        articleDao.findById(id)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 게시물입니다. id=" + id));
 
         validateReferences(articleData.getMemberId(), articleData.getBoardId());
 
         articleData.setId(id);
-        return articleRepository.save(articleData);
+        return articleDao.update(articleData);
     }
 
+    @Transactional
     public void delete(Long id) {
-        articleRepository.findById(id)
+        articleDao.findById(id)
                 .orElseThrow(() -> new NotFoundException("존재하지 않는 게시물입니다. id=" + id));
-        articleRepository.deleteById(id);
+        articleDao.deleteById(id);
     }
 
     private void validateReferences(Long memberId, Long boardId) {
-        if (!memberRepository.existsById(memberId)) {
+        if (!memberDao.existsById(memberId)) {
             throw new BadRequestException("존재하지 않는 사용자입니다. memberId=" + memberId);
         }
-        if (!boardRepository.existsById(boardId)) {
+        if (!boardDao.existsById(boardId)) {
             throw new BadRequestException("존재하지 않는 게시판입니다. boardId=" + boardId);
         }
     }
