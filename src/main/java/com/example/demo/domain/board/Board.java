@@ -1,12 +1,11 @@
 package com.example.demo.domain.board;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.example.demo.domain.article.Article;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "board")
@@ -20,6 +19,9 @@ public class Board {
     @Column(name = "name")
     private String name;
 
+    @OneToMany(mappedBy = "board", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Article> articles = new ArrayList<>();
+
     public Board() {}
 
     public Board(Long id, String name) {
@@ -31,4 +33,16 @@ public class Board {
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public List<Article> getArticles() { return articles; }
+    public void setArticles(List<Article> articles) { this.articles = articles; }
+
+    public void addArticle(Article article) {
+        articles.add(article);
+        article.setBoard(this);
+    }
+
+    public void removeArticle(Article article) {
+        articles.remove(article);
+        article.setBoard(null);
+    }
 }
